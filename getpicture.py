@@ -1,33 +1,36 @@
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore, storage
-
-from picamera import PiCamera
+import picamera
 from time import sleep
 import datetime
 
-cred = credentials.Certificate('key.json')
-firebase_admin.initialize_app(cred, {'storageBucket': 'zamarin-dev.appspot.com'})
+import firebase_admin
+from firebase_admin import credentials
+from google.cloud import storage
 
-camera = PiCamera()
+
+storage_client = storage.Client.from_service_account_json('key.json')
 
 def getPicture():
-    camera.start_preview()
-    sleep(1)
-    camera.capture('./pic.jpg')
-    camera.stop_preview()
+    with picamera.PiCamera() as camera:
+        camera.start_preview()
+        sleep(3) 
+        camera.capture('./pic.jpg')
+        camera.stop_preview()
+        camera.close()
 
-def uploadPicture():
-    # firebase = pyrebase.initialize_app(firebaseConfig)
-    now = datetime.datetime.now()
 
-    photo_path = './pic.jpg'
-    uplode_fname = now.strftime("%Y%m%d%H%M")
-    filename = './pic.jpg'
-    content_type = 'image/png'
-    blob = bucket.blob(filename)
-    with open(filename, 'rb') as f:
-        blob.upload_from_file(f, content_type=content_type)
+def upload_blob(file_name, data_sorce):
+    bucket_name = 'zamarin-dev.appspot.com'
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(file_name)
+    blob.upload_from_filename(filename=data_sorce)
+
+    if file_name in bucket.list_blobs():
+        print("cloud storage: upload success")
+    else:
+        print("cloud storage: upload failed")
 
 getPicture()
-uploadPicture()
+upload_fname = 'plant_img/'+datetime.datetime.now().strftime("%Y%m%d%H%M")+'.png'
+print(upload_fname)
+
+upload_blob(upload_fname, './pic.jpg')
